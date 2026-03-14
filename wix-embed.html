@@ -12,8 +12,8 @@
               If the listener clicks it again, the existing window
               is focused rather than opening a second instance and
               the stream keeps playing.
-  On mobile:  navigates directly to the stream URL so the device's
-              native media player handles playback.
+  On mobile:  navigates directly to the player URL so the player
+              opens in a new tab in the browser.
 -->
 
 <style>
@@ -68,11 +68,8 @@
 </button>
 
 <script>
-  // Full player (desktop pop-out)
+  // Player URL
   var playerUrl = 'https://kptzradio.github.io/kptz-live-player/player.html';
-
-  // Direct stream URL (mobile fallback) -- opens in native media player
-  var streamUrl = 'https://kptz.streamguys1.com/live-aac';
 
   // Pop-out window dimensions
   var width  = 320;
@@ -89,7 +86,7 @@
       // Creating and clicking a temporary <a> tag is treated as a direct user-gesture
       // navigation and is never blocked.
       var a = document.createElement('a');
-      a.href = streamUrl;
+      a.href = playerUrl;
       a.target = '_blank';
       a.rel = 'noopener';
       document.body.appendChild(a);
