@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KPTZ 91.9 FM — Live Player</title>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    /* ── Player shell ── */
+    .player {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 10px;
+      overflow: hidden;
+      width: 300px;
+    }
+
+    /* ── Header bar ── */
+    .player-header {
+      background: #1a1a1a;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #3a3a3a;
+    }
+
+    .logo-box {
+      width: 42px;
+      height: 42px;
+      border-radius: 5px;
+      border: 1px solid #555;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Logo image — swap src to your actual logo URL */
+    .logo-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Fallback text if logo image fails */
+    .logo-fallback {
+      font-size: 10px;
+      font-weight: 600;
+      color: #fff;
+      text-align: center;
+      letter-spacing: 0.03em;
+      line-height: 1.2;
+    }
+    .logo-fallback .wave-line {
+      display: block;
+      width: 28px;
+      margin: 3px auto 0;
+    }
+
+    .station-info { flex: 1; min-width: 0; }
+    .callsign {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: 0.04em;
+    }
+    .tagline {
+      font-size: 10px;
+      color: #888;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: #6b1414;
+      color: #f5a0a0;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+      transition: background 0.3s, color 0.3s;
+    }
+    .live-badge.inactive {
+      background: #333;
+      color: #666;
+    }
+    .live-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #e05555;
+      transition: background 0.3s;
+    }
+    .live-badge.inactive .live-dot { background: #555; }
+
+    /* ── Middle: art + track info ── */
+    .player-middle {
+      padding: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      min-height: 100px;
+    }
+
+    .album-art {
+      width: 76px;
+      height: 76px;
+      border-radius: 5px;
+      background: #3a3a3a;
+      flex-shrink: 0;
+      border: 1px solid #555;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .album-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .art-placeholder {
+      opacity: 0.2;
+    }
+
+    .track-info {
+      flex: 1;
+      min-width: 0;
+      padding-top: 2px;
+    }
+
+    .track-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+    .track-artist {
+      font-size: 12px;
+      color: #bbb;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .track-album {
+      font-size: 11px;
+      color: #777;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-style: italic;
+    }
+
+    .show-info {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #3a3a3a;
+      display: none; /* shown conditionally via JS */
+    }
+    .show-info.visible { display: block; }
+
+    .show-name {
+      font-size: 11px;
+      color: #c0785a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .show-name .show-label { color: #666; }
+
+    .show-time {
+      font-size: 10px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    /* Empty / loading state */
+    .track-title.muted { color: #666; }
+
+    /* ── Controls bar ── */
+    .player-controls {
+      background: #1e1e1e;
+      border-top: 1px solid #3a3a3a;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .play-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #8b1a1a;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .play-btn:hover { background: #a82020; }
+    .play-btn:active { background: #701414; transform: scale(0.96); }
+    .play-btn:disabled { background: #444; cursor: not-allowed; }
+
+    .play-icon, .pause-icon { display: none; }
+    .play-icon.visible, .pause-icon.visible { display: block; }
+
+    .volume-section {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .vol-icon { flex-shrink: 0; opacity: 0.45; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      flex: 1;
+      height: 3px;
+      background: #444;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #8b1a1a;
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #8b1a1a;
+      border: none;
+      cursor: pointer;
+    }
+
+    .spinitron-credit {
+      font-size: 9px;
+      color: #444;
+      flex-shrink: 0;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Error banner (hidden by default) ── */
+    .error-banner {
+      background: #3a1a1a;
+      color: #f5a0a0;
+      font-size: 11px;
+      text-align: center;
+      padding: 6px 14px;
+      display: none;
+      border-top: 1px solid #5a2a2a;
+    }
+    .error-banner.visible { display: block; }
+
+  </style>
+</head>
+<body>
+
+  <div class="player" role="region" aria-label="KPTZ Live Player">
+
+    <!-- Hidden audio element -->
+    <audio id="stream" preload="none">
+      <source src="https://kptz.streamguys1.com/live-aac" type="audio/aac">
+      Your browser does not support the audio element.
+    </audio>
+
+    <!-- ── Header ── -->
+    <div class="player-header">
+      <div class="logo-box" id="logo-box">
+        <!--
+          REPLACE the img src below with the URL to your actual KPTZ logo.
+          A good candidate from your Wix site:
+          https://static.wixstatic.com/media/c80cf5_26b38d88d6194b37ab1cd0ef21398676~mv2.png
+
+          The fallback text/SVG below shows if the image fails to load.
+        -->
+        <img
+          src="https://static.wixstatic.com/media/c80cf5_26b38d88d6194b37ab1cd0ef21398676~mv2.png"
+          alt="KPTZ logo"
+          id="logo-img"
+          onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';"
+        >
+        <div class="logo-fallback" id="logo-fallback" style="display:none; flex-direction:column; align-items:center;">
+          KPTZ
+          <svg class="wave-line" viewBox="0 0 28 8" fill="none">
+            <path d="M1 7 Q4 1 7 4 Q10 7 13 4 Q16 1 19 4 Q22 7 25 4 Q27 2 28 3"
+                  stroke="#c0302a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="station-info">
+        <div class="callsign">KPTZ 91.9 FM</div>
+        <div class="tagline">Radio Port Townsend</div>
+      </div>
+
+      <div class="live-badge inactive" id="live-badge">
+        <div class="live-dot"></div>LIVE
+      </div>
+    </div>
+
+    <!-- ── Middle: album art + track info ── -->
+    <div class="player-middle">
+      <div class="album-art" id="album-art-box">
+        <!-- Replaced with <img> by JS when art is available -->
+        <svg class="art-placeholder" width="32" height="32" viewBox="0 0 24 24"
+             fill="none" stroke="#fff" stroke-width="1">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="12" r="3"/>
+          <line x1="12" y1="2" x2="12" y2="5"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </div>
+
+      <div class="track-info">
+        <div class="track-title muted" id="track-title">Click play to listen</div>
+        <div class="track-artist" id="track-artist">KPTZ 91.9 FM</div>
+        <div class="track-album" id="track-album">Port Townsend, WA</div>
+
+        <div class="show-info" id="show-info">
+          <div class="show-name" id="show-name">
+            <span class="show-label">On air: </span>
+            <span id="show-name-text"></span>
+          </div>
+          <div class="show-time" id="show-time"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Error banner ── -->
+    <div class="error-banner" id="error-banner">
+      Stream unavailable — please try again shortly.
+    </div>
+
+    <!-- ── Controls ── -->
+    <div class="player-controls">
+      <button class="play-btn" id="play-btn" aria-label="Play stream" title="Play">
+        <svg class="play-icon visible" id="play-icon" width="14" height="14"
+             viewBox="0 0 24 24" fill="#fff">
+          <polygon points="5,3 19,12 5,21"/>
+        </svg>
+        <svg class="pause-icon" id="pause-icon" width="14" height="14"
+             viewBox="0 0 24 24" fill="#fff">
+          <rect x="5" y="3" width="4" height="18"/>
+          <rect x="15" y="3" width="4" height="18"/>
+        </svg>
+      </button>
+
+      <div class="volume-section">
+        <svg class="vol-icon" width="14" height="14" viewBox="0 0 24 24"
+             fill="none" stroke="#fff" stroke-width="1.5">
+          <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
+          <path d="M15.54,8.46a5,5,0,0,1,0,7.07"/>
+          <path d="M19.07,4.93a10,10,0,0,1,0,14.14"/>
+        </svg>
+        <input type="range" id="volume" min="0" max="1" step="0.05" value="0.8"
+               aria-label="Volume">
+      </div>
+
+      <div class="spinitron-credit">via Spinitron</div>
+    </div>
+
+  </div><!-- /.player -->
+
+  <script>
+    // ─────────────────────────────────────────────
+    // CONFIGURATION — edit these values
+    // ─────────────────────────────────────────────
+
+    const CONFIG = {
+      streamUrl: 'https://kptz.streamguys1.com/live-aac',
+
+      // Your Cloudflare Worker proxy URL (see worker.js in this repo).
+      // It forwards requests to Spinitron and adds CORS headers.
+      // Format: https://your-worker-name.your-subdomain.workers.dev
+      proxyBase: 'https://YOUR-WORKER.workers.dev',
+
+      // Poll interval in milliseconds (30 seconds per Spinitron recommendation)
+      pollInterval: 30000,
+    };
+
+    // ─────────────────────────────────────────────
+    // DOM refs
+    // ─────────────────────────────────────────────
+
+    const audio       = document.getElementById('stream');
+    const playBtn     = document.getElementById('play-btn');
+    const playIcon    = document.getElementById('play-icon');
+    const pauseIcon   = document.getElementById('pause-icon');
+    const volumeSlider = document.getElementById('volume');
+    const liveBadge   = document.getElementById('live-badge');
+    const trackTitle  = document.getElementById('track-title');
+    const trackArtist = document.getElementById('track-artist');
+    const trackAlbum  = document.getElementById('track-album');
+    const albumArtBox = document.getElementById('album-art-box');
+    const showInfo    = document.getElementById('show-info');
+    const showNameText = document.getElementById('show-name-text');
+    const showTime    = document.getElementById('show-time');
+    const errorBanner = document.getElementById('error-banner');
+
+    // ─────────────────────────────────────────────
+    // State
+    // ─────────────────────────────────────────────
+
+    let isPlaying = false;
+    let pollTimer = null;
+    let currentSpinId = null;
+
+    // ─────────────────────────────────────────────
+    // Playback
+    // ─────────────────────────────────────────────
+
+    function setPlayingState(playing) {
+      isPlaying = playing;
+      playIcon.classList.toggle('visible', !playing);
+      pauseIcon.classList.toggle('visible', playing);
+      liveBadge.classList.toggle('inactive', !playing);
+      playBtn.setAttribute('aria-label', playing ? 'Pause stream' : 'Play stream');
+      playBtn.setAttribute('title', playing ? 'Pause' : 'Play');
+    }
+
+    playBtn.addEventListener('click', () => {
+      if (isPlaying) {
+        audio.pause();
+        // Unload stream to stop buffering
+        audio.src = '';
+        setPlayingState(false);
+        stopPolling();
+      } else {
+        errorBanner.classList.remove('visible');
+        // Reload stream fresh to get the live edge
+        audio.src = CONFIG.streamUrl;
+        audio.volume = parseFloat(volumeSlider.value);
+        audio.play().catch(() => {
+          showError('Could not start stream. Please check your connection.');
+        });
+      }
+    });
+
+    audio.addEventListener('playing', () => {
+      setPlayingState(true);
+      clearError();
+      startPolling();
+    });
+
+    audio.addEventListener('error', () => {
+      setPlayingState(false);
+      stopPolling();
+      showError('Stream error — please try again shortly.');
+    });
+
+    audio.addEventListener('stalled', () => {
+      // Stall is normal for live streams briefly; only show error after a delay
+      setTimeout(() => {
+        if (isPlaying && audio.readyState < 3) {
+          showError('Stream stalled — attempting to reconnect…');
+        }
+      }, 8000);
+    });
+
+    // Volume
+    volumeSlider.addEventListener('input', () => {
+      audio.volume = parseFloat(volumeSlider.value);
+    });
+
+    // ─────────────────────────────────────────────
+    // Spinitron polling
+    // ─────────────────────────────────────────────
+
+    function startPolling() {
+      fetchNowPlaying();
+      pollTimer = setInterval(fetchNowPlaying, CONFIG.pollInterval);
+    }
+
+    function stopPolling() {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+
+    async function fetchNowPlaying() {
+      try {
+        // Fetch current spin
+        const spinRes = await fetch(
+          `${CONFIG.proxyBase}/spins?count=1`,
+          { cache: 'no-store' }
+        );
+        if (!spinRes.ok) throw new Error('Spin fetch failed');
+        const spinData = await spinRes.json();
+        const spin = spinData.items?.[0];
+
+        if (spin) {
+          updateTrackInfo(spin);
+        }
+
+        // Only fetch show if spin has a playlist_id we can look up
+        if (spin?.playlist_id) {
+          fetchShowInfo(spin.playlist_id);
+        }
+
+      } catch (err) {
+        console.warn('Spinitron fetch error:', err);
+        // Don't surface this as a player error — stream may still be fine
+      }
+    }
+
+    async function fetchShowInfo(playlistId) {
+      try {
+        const res = await fetch(
+          `${CONFIG.proxyBase}/playlists/${playlistId}`,
+          { cache: 'no-store' }
+        );
+        if (!res.ok) return;
+        const playlist = await res.json();
+
+        // playlist.show_id lets us get the show name and times
+        if (playlist.show_id) {
+          const showRes = await fetch(
+            `${CONFIG.proxyBase}/shows/${playlist.show_id}`,
+            { cache: 'no-store' }
+          );
+          if (!showRes.ok) return;
+          const show = await showRes.json();
+          updateShowInfo(show, playlist);
+        } else {
+          // No show attached (e.g. automation/freeform block)
+          clearShowInfo();
+        }
+      } catch (err) {
+        console.warn('Show fetch error:', err);
+        clearShowInfo();
+      }
+    }
+
+    // ─────────────────────────────────────────────
+    // UI update helpers
+    // ─────────────────────────────────────────────
+
+    function updateTrackInfo(spin) {
+      // Only animate update if this is a new spin
+      if (spin.id === currentSpinId) return;
+      currentSpinId = spin.id;
+
+      trackTitle.textContent = spin.song || 'Unknown track';
+      trackTitle.classList.remove('muted');
+      trackArtist.textContent = spin.artist || '';
+      trackAlbum.textContent = spin.release || '';
+
+      // Album art
+      const artUrl = spin.image;
+      albumArtBox.innerHTML = '';
+      if (artUrl) {
+        const img = document.createElement('img');
+        img.src = artUrl;
+        img.alt = `${spin.release || spin.song} cover art`;
+        img.onerror = () => showArtPlaceholder();
+        albumArtBox.appendChild(img);
+      } else {
+        showArtPlaceholder();
+      }
+    }
+
+    function showArtPlaceholder() {
+      albumArtBox.innerHTML = `
+        <svg class="art-placeholder" width="32" height="32" viewBox="0 0 24 24"
+             fill="none" stroke="#fff" stroke-width="1">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="12" r="3"/>
+          <line x1="12" y1="2" x2="12" y2="5"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>`;
+    }
+
+    function updateShowInfo(show, playlist) {
+      // show.title is the program name
+      // playlist.start / playlist.end are ISO timestamps for this air block
+      if (!show?.title) {
+        clearShowInfo();
+        return;
+      }
+
+      showNameText.textContent = show.title;
+
+      if (playlist?.start && playlist?.end) {
+        const fmt = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        showTime.textContent = `${fmt(playlist.start)} – ${fmt(playlist.end)}`;
+      } else {
+        showTime.textContent = '';
+      }
+
+      showInfo.classList.add('visible');
+    }
+
+    function clearShowInfo() {
+      showInfo.classList.remove('visible');
+      showNameText.textContent = '';
+      showTime.textContent = '';
+    }
+
+    function showError(msg) {
+      errorBanner.textContent = msg;
+      errorBanner.classList.add('visible');
+    }
+
+    function clearError() {
+      errorBanner.classList.remove('visible');
+    }
+
+    // ─────────────────────────────────────────────
+    // Window title — nice to have for pop-out
+    // ─────────────────────────────────────────────
+
+    function updateWindowTitle() {
+      const title = trackTitle.textContent;
+      const artist = trackArtist.textContent;
+      if (isPlaying && title && artist) {
+        document.title = `▶ ${artist} – ${title} | KPTZ`;
+      } else {
+        document.title = 'KPTZ 91.9 FM — Live Player';
+      }
+    }
+
+    // Update title whenever track changes
+    const titleObserver = new MutationObserver(updateWindowTitle);
+    titleObserver.observe(trackTitle, { childList: true });
+
+  </script>
+</body>
+</html>
