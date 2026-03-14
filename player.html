@@ -444,6 +444,7 @@
     let isPlaying = false;
     let pollTimer = null;
     let currentSpinId = null;
+    let intentionalStop = false;
 
     // ─────────────────────────────────────────────
     // Playback
@@ -460,6 +461,7 @@
 
     playBtn.addEventListener('click', () => {
       if (isPlaying) {
+        intentionalStop = true;
         audio.pause();
         // Unload stream to stop buffering
         audio.src = '';
@@ -483,6 +485,10 @@
     });
 
     audio.addEventListener('error', () => {
+      if (intentionalStop) {
+        intentionalStop = false;
+        return;
+      }
       setPlayingState(false);
       stopPolling();
       showError('Stream error — please try again shortly.');
